@@ -1,0 +1,40 @@
+﻿This is supposed to turn a string formatted like this:
+into a INetMessage
+
+'rejected?reason=failure&iiwr=true'
+
+Should translate to
+
+INetMessage
+{
+  "EventId": 'rejected',
+  "WantsResponse": true,
+  "Properties": {
+     "reason": "failure"
+  }
+}
+
+The reason for this, is to allow users (from a console/GUI standpoint) to send requests
+to the client/server with this format.
+
+----- Post Write ------
+
+Works perfectly.
+
+The format is as follows
+  EventId        <- the event to raise
+    ?            <- tells the lexer there is an argument list.
+  PropertyName   <- defines the name of a property
+    =            <- assignment of a property
+  PropertyValue  <- the value being assigned to the previous property name
+    &            <- tells the lexer there is another property
+  PropertyName2  <- define another property name
+    =            <- assign the second property
+  PropertyValue2 <- value of the second property
+  <...>          <- go on and on
+
+'on-ready?id=9wdkfw832&iiwr=true'
+
+--- Special Parameters (prefixed by 'ii'. Why? because its ugly. No-one would name a parameter this.) ---
+'iiwr' - WantsResponse. This will set the 'WantsResponse' property of INetMessage to the
+specified value.
