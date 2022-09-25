@@ -65,5 +65,18 @@ namespace Net.Tests
             Assert.That(msg!.Properties.ContainsKey("msgType"));
             _engine.Reset();
         }
+
+        [Test]
+        public void TestStringLiteralInsideResourceString()
+        {
+            var resource = _engine.Parse("help?text='hello world!'");
+            System.Console.WriteLine(resource);
+
+            Assert.That(resource, Is.Not.Null);
+
+            Assert.That(resource.EventId == "help");
+            Assert.That(resource.Properties.ContainsKey("text"));
+            Assert.That(resource.Properties["text"], Is.EqualTo("hello world!"));
+        }
     }
 }

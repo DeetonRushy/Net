@@ -2,30 +2,36 @@
 using Net.Config;
 using Net.Core.Logging;
 using Net.Core.Messages;
+using Net.Core.ResourceParser.Lexer;
 using Net.Core.Server.Connection.Identity;
 
 /*
  * creates a local server + client
  */
 
-ConfigurationManager.UseLogger<DebugLogger>();
+//ConfigurationManager.UseLogger<DebugLogger>();
 
-Factory.SetGlobalConnectionDetails("localhost", 56433);
+//Factory.SetGlobalConnectionDetails("localhost", 56433);
 
-var identity = new DefaultId("Deeton");
+//var identity = new DefaultId("Deeton");
 
-var server = await Factory.MakeServerFromDetails<DefaultId>();
-var client = await Factory.MakeClientAndStart<NetMessage<DefaultId>, DefaultId>("localhost", 56433, identity);
+//var server = await Factory.MakeServerFromDetails<DefaultId>();
+//var client = await Factory.MakeClientAndStart<NetMessage<DefaultId>, DefaultId>("localhost", 56433, identity);
 
-var msg = await Factory.MessageFromResourceString<NetMessage<DefaultId>>("display?text=Willy And Balls");
+//var msg = await Factory.MessageFromResourceString<NetMessage<DefaultId>>("display?text=Willy And Balls");
 
-if (msg is null)
-{
-    return;
-}
+//if (msg is null)
+//{
+//    return;
+//}
 
-await server.RhetoricalSendTo
-    (IdentityType.Name, "Deeton", 
-    msg);
+//await server.RhetoricalSendTo
+//    (IdentityType.Name, "Deeton", 
+//    msg);
 
-Console.ReadLine();
+//Console.ReadLine();
+
+var lexer = new ResourceLexer();
+var tokens = lexer.Lex("help?text='hello & willy!'");
+
+tokens.ForEach(x => Console.WriteLine(x));

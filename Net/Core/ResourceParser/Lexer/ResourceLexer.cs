@@ -1,3 +1,4 @@
+using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 using Net.Core.ResourceParser.Lexer.Exceptions;
 using System.Reflection.Metadata.Ecma335;
 
@@ -21,7 +22,7 @@ public class ResourceLexer
 
     public List<Token> Lex(string Contents)
     {
-        _contents = Contents;
+        _contents = Contents + '\0';
         
         while (true)
         {
@@ -51,6 +52,7 @@ public class ResourceLexer
             LexerConstants.Ampersand => MakeToken(TokenType.Ampersand, "&"),
             LexerConstants.Assignment => MakeToken(TokenType.Equals, "="),
             LexerConstants.QuestionMark => MakeToken(TokenType.QuestionMark, "?"),
+            LexerConstants.EndOfResource => MakeToken(TokenType.Eor, "\0"),
             var c when !LexerConstants.ReservedCharacters.Contains(c) => LexLiteral(),
             _ => throw new LexerException($"failed to lex position '{_position}' in string '{_contents}'"),
         };
@@ -69,15 +71,20 @@ public class ResourceLexer
             return LexEventId();
         }
 
-        if (last!.TokenType == TokenType.QuestionMark
-            || last!.TokenType == TokenType.Ampersand)
+        if (last.TokenType == TokenType.QuestionMark
+            || last.TokenType == TokenType.Ampersand)
         {
             return LexPropertyIdentifier();
         }
 
-        if (last!.TokenType == TokenType.Equals)
+        if (last.TokenType == TokenType.Equals)
         {
             return LexPropertyValue();
+        }
+
+        if (last.TokenType == TokenType.Value)
+        {
+
         }
 
         throw new LexerException("Unknown literal sequence");
@@ -91,15 +98,38 @@ public class ResourceLexer
         string lexeme = string.Empty;
         char c = Current();
 
-        while (!LexerConstants.ReservedCharacters.Contains(c))
+        if (c == LexerConstants.StringLiteralDelim)
         {
-            lexeme += c;
             c = Advance();
 
-            if (c == LexerConstants.EndOfResource)
+            while (c != LexerConstants.StringLiteralDelim)
             {
-                _isAtEnd = true;
-                break;
+                lexeme += c;
+                c = Advance();
+
+                if (c == LexerConstants.EndOfResource)
+                {
+                    throw new LexerException("unterminated string literal in resource");
+                }
+            }
+
+            // It could be an empty string
+            // Also:
+            _position += 1;
+            return MakeToken(TokenType.Identifier, lexeme);
+        }
+        else
+        {
+            while (!LexerConstants.ReservedCharacters.Contains(c))
+            {
+                lexeme += c;
+                c = Advance();
+
+                if (c == LexerConstants.EndOfResource)
+                {
+                    _isAtEnd = true;
+                    break;
+                }
             }
         }
 

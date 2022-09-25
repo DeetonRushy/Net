@@ -8,6 +8,7 @@ public static class LexerConstants
     public const char Assignment = '=';
 
     public const char EndOfResource = '\0';
+    public const char StringLiteralDelim = '\'';
 
     public static readonly List<char> ReservedCharacters
         = new ()

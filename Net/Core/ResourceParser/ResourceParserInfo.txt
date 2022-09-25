@@ -33,6 +33,9 @@ The format is as follows
   PropertyValue2 <- value of the second property
   <...>          <- go on and on
 
+string literals are now supported for property values.
+Ex: "help?index='Manual Page'"
+
 'on-ready?id=9wdkfw832&iiwr=true'
 
 --- Special Parameters (prefixed by 'ii'. Why? because its ugly. No-one would name a parameter this.) ---
