@@ -14,10 +14,10 @@ public class NetClient<Packet, Identity>
     : INetworkInterface where Identity : IClientIdentifier 
     where Packet : INetMessage
 {
-    private Socket _socket;
-    private EventDict _events;
+    private readonly Socket _socket;
+    private readonly EventDict _events;
 
-    private Thread _listener;
+    private readonly Thread _listener;
 
     ILogger? logger;
 
