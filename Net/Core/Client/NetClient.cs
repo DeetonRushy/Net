@@ -11,7 +11,7 @@ using System.Net.Sockets;
 namespace Net.Core.Client;
 
 public class NetClient<Packet, Identity> 
-    : INetworkInterface where Identity : IClientIdentifier 
+    : INetworkInterface where Identity : ICLIdentifier 
     where Packet : INetMessage
 {
     private readonly Socket _socket;

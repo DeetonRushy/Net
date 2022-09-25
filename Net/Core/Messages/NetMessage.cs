@@ -34,7 +34,7 @@ public interface INetMessage
 /// Serves as a base for INetMessage. This is the default type that
 /// will be networked.
 /// </summary>
-public class NetMessage<T> : INetMessage where T : IClientIdentifier
+public class NetMessage<T> : INetMessage where T : ICLIdentifier
 {
     public NetMessage()
     {
@@ -88,7 +88,7 @@ public class NetMessage<T> : INetMessage where T : IClientIdentifier
             .Build();
 }
 
-public class NetMessageBuilder<T> where T : IClientIdentifier
+public class NetMessageBuilder<T> where T : ICLIdentifier
 {
     private Dictionary<string, object> Properties;
     private string EventId;

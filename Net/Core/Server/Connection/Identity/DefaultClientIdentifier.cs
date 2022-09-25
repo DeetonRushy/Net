@@ -3,9 +3,9 @@ using System.Net.Sockets;
 namespace Net.Core.Server.Connection.Identity;
 
 /// <summary>
-/// Serves as a base class for <see cref="IClientIdentifier"/>
+/// Serves as a base class for <see cref="ICLIdentifier"/>
 /// </summary>
-public class DefaultId : IClientIdentifier
+public class DefaultId : ICLIdentifier
 {
     public DefaultId()
     {
@@ -29,7 +29,7 @@ public class DefaultId : IClientIdentifier
     /// <summary>
     /// The clients socket. This will be null when the data has been sent from
     /// a client. It should be set on the server side once the client has sent
-    /// it's <see cref="IClientIdentifier"/> instance.
+    /// it's <see cref="ICLIdentifier"/> instance.
     /// </summary>
     public Socket? Socket { get; init; } = default;
 }

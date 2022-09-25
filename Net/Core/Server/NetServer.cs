@@ -11,7 +11,7 @@ using System.Net.Sockets;
 
 namespace Net.Core.Server;
 
-public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIdentity : IClientIdentifier, new()
+public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIdentity : ICLIdentifier, new()
 {
     private Socket? _socket;
     private List<Socket>? _rawConnections;
@@ -24,6 +24,8 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
     private readonly bool _debugMode;
 
     private readonly object _lock = new();
+
+    public bool Connected { get; private set; } = false;
 
     public NetServer(Logging.ILogger? logger = null)
     {
@@ -87,7 +89,6 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
     {
         Dispose();
     }
-
     public void Dispose()
     {
         GC.SuppressFinalize(this);
@@ -97,7 +98,6 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         _socket?.Dispose();
     }
-
     public async Task<INetMessage?> Send(Socket socket, INetMessage msg)
     {
         if (_rawConnections is null)
@@ -109,13 +109,11 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         return response?.Message;
     }
-
     public async Task<T?> Send<T>(Socket socket, T msg) where T: INetMessage
     {
         await socket.SendNetMessage(msg);
         return await socket.ReadNetMessage<T>();
     }
-
     public async Task RhetoricalSendTo<T>(Socket socket, T msg) where T : INetMessage
     {
         msg.WantsResponse = false;
@@ -167,7 +165,6 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 throw new ArgumentOutOfRangeException($"IdentityType({identifierType}) is not implemented.");
         }
     }
-
     public async Task<INetMessage?> SendTo(IdentityType identifierType, string identifier, INetMessage message)
     {
         /* 
@@ -213,7 +210,6 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
     {
         return (T?)await SendTo(identifierType, identifier, message);
     }
-
     public async Task<bool> Start(string ip, int port)
     {
         _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -233,14 +229,14 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         _rawConnections = new();
         _console.MainLoop();
 
+        Connected = _socket.Connected;
+
         return _socket.Connected;
     }
-
     public async Task<MessageInfo?> WaitForMessage<T>() where T : INetMessage
     {
         return await WaitForMessage<T>(TimeSpan.MaxValue);
     }
-
     public async Task<MessageInfo?> WaitForMessage<T>(TimeSpan timeout) where T : INetMessage
     {
         SpinWait.SpinUntil(() =>
@@ -269,7 +265,6 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         return new MessageInfo { Message = message, Sender = client };
     }
-
     public async Task TriggerEvent(INetMessage message)
     {
         foreach (var cl in _connectedClients)
@@ -281,12 +276,10 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
     {
         await RhetoricalSendTo(type, identifier, message);
     }
-
     public async Task<T?> TriggerEventFor<T>(IdentityType type, string identifier, INetMessage message) where T : INetMessage
     {
         return await SendTo<T>(type, identifier, message);
     }
-
     public async Task Broadcast(INetMessage message)
     {
         if (_rawConnections is null)
@@ -315,7 +308,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         if (message.WantsResponse)
         {
-            await _logger.WarnAsync(_console, $"Cannot fetch {_rawConnections.Count} responses from a broadcast. (WantsResponse is set on a broadcast)");
+            await _logger.WarnAsync(_console, $"cannot fetch {_rawConnections.Count} responses from a broadcast. (WantsResponse is set on a broadcast)");
         }
 
         foreach (var client in _rawConnections)
@@ -323,7 +316,6 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
             await Send(client, message);
         }
     }
-
     public async Task Shutdown<T>(string Reason) where T: class, INetMessage, new()
     {
         await Task.Run(async () =>
@@ -347,11 +339,35 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         });
     }
 
+    public List<CLIdentity> GetClients(int count = 0)
+    {
+        if (count == 0)
+            return _connectedClients;
+        if (count > _connectedClients.Count)
+            throw new ArgumentOutOfRangeException($"Not enough clients to get {count}");
+        return _connectedClients
+            .ToArray()
+            [0..count]
+            .ToList();
+    }
+    public int ClientCount
+        => _connectedClients.Count;
+
+    public bool IsDebug
+        => _debugMode;
+
     public void ServerPacketAcceptor()
     {
         while (true)
         {
-            var sock = _socket.Accept();
+            var sock = _socket?.Accept();
+
+            if (sock is null)
+            {
+                // server is either no longer connected or never connected.
+                Connected = false;
+                break;
+            }
 
             _ = Task.Run(async () =>
             {

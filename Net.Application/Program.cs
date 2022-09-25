@@ -2,7 +2,6 @@
 using Net.Config;
 using Net.Core.Logging;
 using Net.Core.Messages;
-using Net.Core.ResourceParser.Lexer;
 using Net.Core.Server.Connection.Identity;
 
 /*

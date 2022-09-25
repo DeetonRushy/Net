@@ -32,14 +32,14 @@ namespace Net
 #endif
         }
 
-        public static NetServer<T> MakeServer<T>() where T : IClientIdentifier, new()
+        public static NetServer<T> MakeServer<T>() where T : ICLIdentifier, new()
         {
             return new (); 
         }
 
         public static NetClient<Msg, Id> MakeClient<Msg, Id>()
             where Msg : INetMessage
-            where Id  : IClientIdentifier
+            where Id  : ICLIdentifier
         {
             var client = new NetClient<Msg, Id>();
             return client;
@@ -48,7 +48,7 @@ namespace Net
         public static async Task<NetClient<Msg, Id>> 
             MakeClientAndStart<Msg, Id>(string ip, int port, Id id)
             where Msg: INetMessage
-            where Id: IClientIdentifier
+            where Id: ICLIdentifier
         {
             var cl = MakeClient<Msg, Id>();
 #if DEBUG
@@ -59,7 +59,7 @@ namespace Net
             return cl;
         }
 
-        public static async Task<NetServer<T>> MakeServerFromDetails<T>() where T: IClientIdentifier, new()
+        public static async Task<NetServer<T>> MakeServerFromDetails<T>() where T: ICLIdentifier, new()
         {
             if (ServerConfig.GetFlag("connection_details") is not ConfigFlag details)
             {
@@ -74,7 +74,7 @@ namespace Net
 
         public static async Task<NetClient<Packet, Identity>> MakeClientFromDetails<Packet, Identity>(Identity id)
             where Packet : INetMessage, new()
-            where Identity : IClientIdentifier, new()
+            where Identity : ICLIdentifier, new()
         {
             if (ClientConfig.GetFlag("connection_details") is not ConfigFlag details)
             {
@@ -87,7 +87,7 @@ namespace Net
             return await MakeClientAndStart<Packet, Identity>(ip, port, id);
         }    
 
-        public static async Task<NetServer<T>> MakeServerAndStart<T>(string ip = "localhost", int port = 1337) where T : IClientIdentifier, new()
+        public static async Task<NetServer<T>> MakeServerAndStart<T>(string ip = "localhost", int port = 1337) where T : ICLIdentifier, new()
         {
             var s = MakeServer<T>();
             await s.Start(ip, port);
