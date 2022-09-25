@@ -27,7 +27,8 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
     public NetServer(Logging.ILogger? logger = null)
     {
-        _logger = logger ?? new DebugLogger("NetServer");
+        _logger = logger
+            ?? new DebugLogger("NetServer");
         _debugMode = ServerConfig.GetFlag("debug") != null;
         _console = new ConsoleSystem();
         _connectedClients = new();
@@ -223,63 +224,10 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         await _logger.InfoAsync(_console, $"Server started on ({ip}:{port}) [{(_debugMode ? "Debug" : "Release")}]");
 
-        _acceptor = new(() =>
-        {
-            while (true)
-            {
-                var sock = _socket.Accept();
-
-                _ = Task.Run(async () =>
-                {
-                    /* maybe do something with the response */
-                    var response = await
-                        Send(sock, NetMessage<CLIdentity>.Connecting);
-
-                    if (response is null)
-                    {
-                        await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Rejected);
-                        return;
-                    }
-
-                    if (response.Identity is null)
-                    {
-                        await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Rejected);
-                        return;
-                    }
-
-                    if (ServerConfig.GetFlag("allowMultipleSessions") is null)
-                    {
-                        if (_connectedClients.Any(x => x.Id == response.Identity.Id))
-                        {
-                            var rejection = new NetMessageBuilder<CLIdentity>()
-                                .WithEventId("disallowed")
-                                .WithProperty("reason", "Multiple sessions for the same user is disallowed")
-                                .Build();
-                            await RhetoricalSendTo(sock, rejection);
-                            sock.Close();
-                            return;
-                        }
-                    }
-
-                    lock (_lock)
-                    {
-                        var serverClient = new CLIdentity
-                        {
-                            Name = response.Identity.Name,
-                            Socket = sock,
-                            Id = response.Identity.Id
-                        };
-
-                        _logger?.Info($"Accepted client '{response.Identity.Name}'");
-                        _rawConnections?.Add(sock);
-                        _connectedClients?.Add(serverClient);
-                    }
-
-                    await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Connected);
-                });
-            }
-        })
-        { Name = "Net.Server.SocketListener" };
+        _acceptor = new(ServerPacketAcceptor)
+        { 
+            Name = "Net.Server.SocketListener" 
+        };
 
         _acceptor.Start();
         _rawConnections = new();
@@ -397,5 +345,62 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 x.Socket?.Dispose();
             });
         });
+    }
+
+    public void ServerPacketAcceptor()
+    {
+        while (true)
+        {
+            var sock = _socket.Accept();
+
+            _ = Task.Run(async () =>
+            {
+                /* maybe do something with the response */
+                var response = await
+                    Send(sock, NetMessage<CLIdentity>.Connecting);
+
+                if (response is null)
+                {
+                    await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Rejected);
+                    return;
+                }
+
+                if (response.Identity is null)
+                {
+                    await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Rejected);
+                    return;
+                }
+
+                if (ServerConfig.GetFlag("allowMultipleSessions") is null)
+                {
+                    if (_connectedClients.Any(x => x.Id == response.Identity.Id))
+                    {
+                        var rejection = new NetMessageBuilder<CLIdentity>()
+                            .WithEventId("disallowed")
+                            .WithProperty("reason", "Multiple sessions for the same user is disallowed")
+                            .Build();
+                        await RhetoricalSendTo(sock, rejection);
+                        sock.Close();
+                        return;
+                    }
+                }
+
+                lock (_lock)
+                {
+                    var serverClient = new CLIdentity
+                    {
+                        Name = response.Identity.Name,
+                        Socket = sock,
+                        Id = response.Identity.Id
+                    };
+
+                    _logger?.Info($"Accepted client '{response.Identity.Name}'");
+                    _rawConnections?.Add(sock);
+                    _connectedClients?.Add(serverClient);
+                }
+
+                await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Connected);
+            });
+        }
     }
 }

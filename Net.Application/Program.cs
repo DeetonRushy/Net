@@ -16,9 +16,14 @@ Factory.SetGlobalConnectionDetails("localhost", 56433);
 var identity = new DefaultId("Deeton");
 
 var server = await Factory.MakeServerFromDetails<DefaultId>();
-var client = await Factory.MakeClientAndStart<NetMessage<DefaultId>, DefaultId>("localhost", 56433, identity);
+var client = await Factory.MakeClientFromDetails<NetMessage<DefaultId>, DefaultId>(identity);
 
-var msg = await Factory.MessageFromResourceString<NetMessage<DefaultId>>("display?text=Willy And Balls");
+client.On("connected", (args) =>
+{
+    Console.WriteLine("connected to the server!");
+});
+
+var msg = await Factory.MessageFromResourceString<NetMessage<DefaultId>>("display?text='Willy And Balls'");
 
 if (msg is null)
 {

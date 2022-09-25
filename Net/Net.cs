@@ -18,8 +18,8 @@ namespace Net
             // Initialize default configuration values
 
 #if DEBUG
-            ConfigurationManager.SetFlag(
-            ConfigTarget.Server, new("dumpCfgOnWrite"));
+            //ConfigurationManager.SetFlag(
+            //ConfigTarget.Server, new("dumpCfgOnWrite"));
             // ^^ server config gets dumped every time a value is written to it.
 
             ConfigurationManager.SetFlag(ConfigTarget.Server,
@@ -71,6 +71,21 @@ namespace Net
 
             return await MakeServerAndStart<T>(ip, port);
         }
+
+        public static async Task<NetClient<Packet, Identity>> MakeClientFromDetails<Packet, Identity>(Identity id)
+            where Packet : INetMessage, new()
+            where Identity : IClientIdentifier, new()
+        {
+            if (ClientConfig.GetFlag("connection_details") is not ConfigFlag details)
+            {
+                throw new InvalidOperationException("Cannot MakeServerFromDetails without details set in the configuration");
+            }
+
+            var ip = details.Options[0];
+            var port = int.Parse(details.Options[1]);
+
+            return await MakeClientAndStart<Packet, Identity>(ip, port, id);
+        }    
 
         public static async Task<NetServer<T>> MakeServerAndStart<T>(string ip = "localhost", int port = 1337) where T : IClientIdentifier, new()
         {

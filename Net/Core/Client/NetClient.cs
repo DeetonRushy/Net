@@ -17,9 +17,9 @@ public class NetClient<Packet, Identity>
     private readonly Socket _socket;
     private readonly EventDict _events;
 
-    private readonly Thread _listener;
+    private readonly Thread _socketListener;
 
-    ILogger? logger;
+    ILogger? _logger;
 
     private Identity? _localId;
 
@@ -38,16 +38,12 @@ public class NetClient<Packet, Identity>
     /// <typeparam name="L">The logger to use</typeparam>
     public void UseLogger<L>() where L : ILogger, new()
     {
-        logger = new L();
+        _logger = new L();
     }
 
     public NetClient()
     {
         _events = new EventDict();
-        _events.Add("connected", (message) =>
-        {
-            System.Console.WriteLine("Connected to server");
-        });
         _events.Add("display", (message) =>
         {
             if (!message.Properties.ContainsKey("text"))
@@ -58,27 +54,23 @@ public class NetClient<Packet, Identity>
 
             System.Console.WriteLine(message.Properties["text"]);
         });
-
-        _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        _socket.ReceiveTimeout = _socket.ReceiveTimeout = (int)TimeSpan.FromSeconds(5).TotalMilliseconds;
-
-        _listener = new(() =>
+        _events.Add("shutdown", (_) =>
         {
-            while (true)
-            {
-                SpinWait.SpinUntil(() => _socket.Available > 0);
-                var packet = _socket.ReadNetMessage<Packet>().Result;
-                
-                if (packet is null)
-                {
-                    logger?.Warn("Received packet, but the format was not expected.");
-                    continue;
-                }
+            _socket?.Close();
+            _socket?.Dispose();
+        });
 
-                FireEvent(packet.EventId, packet);
-            }
-        })
-        { Name = "Net.Client.SocketListener" };
+        _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+        {
+            ReceiveTimeout =
+                (int)TimeSpan.FromSeconds(5).TotalMilliseconds
+        };
+
+        _socketListener = new(ListenForPacket)
+        {
+            /*for debugging purposes*/
+            Name = "Net.Client.SocketListener" 
+        };
 
         // configuration purposes
         if (ClientConfig.GetFlag("socketTimeout") is ConfigFlag timeoutFlag)
@@ -87,11 +79,11 @@ public class NetClient<Packet, Identity>
             {
                 if (!int.TryParse(timeoutFlag.Options.First(), out int timeOut))
                 {
-                    logger?.Warn("socketTimeout is set in the configuration, but its value is invalid.");
+                    _logger?.Warn("socketTimeout is set in the configuration, but its value is invalid.");
                 }
                 else
                 {
-                    logger?.Info($"socketTimeout set to '{timeOut}'");
+                    _logger?.Info($"socketTimeout set to '{timeOut}'");
                     _socket.ReceiveTimeout = timeOut;
                 }
             }
@@ -108,7 +100,7 @@ public class NetClient<Packet, Identity>
     {
         if (!msg.WantsResponse)
         {
-            logger?.Warn("You are using Client.Send but do not want a response. It is better practice to use RhetoricalSend instead.");
+            _logger?.Warn("You are using Client.Send but do not want a response. It is better practice to use RhetoricalSend instead.");
         }
 
         await sock.SendNetMessage(msg);
@@ -140,7 +132,7 @@ public class NetClient<Packet, Identity>
     /// <exception cref="NullReferenceException"></exception>
     public async Task<bool> Start(string ip, int port)
     {
-        logger?.Info($"Client start on '{ip}:{port}'");
+        _logger?.Info($"Client start on '{ip}:{port}'");
 
         var host = Dns.GetHostEntry(ip);
         var address = host.AddressList[1];
@@ -200,7 +192,7 @@ public class NetClient<Packet, Identity>
 
         FireEvent(response?.EventId, response!);
 
-        _listener.Start();
+        _socketListener.Start();
 
         return true;
     }
@@ -212,7 +204,7 @@ public class NetClient<Packet, Identity>
     /// <returns><see cref="MessageInfo"/></returns>
     public async Task<MessageInfo?> WaitForMessage<T>() where T : INetMessage
     {
-        logger?.Info("Waiting for response");
+        _logger?.Info("Waiting for response");
 
         return new MessageInfo 
         { 
@@ -249,12 +241,36 @@ public class NetClient<Packet, Identity>
 
     private void FireEvent(string? id, INetMessage message)
     {
-        logger?.Info($"event '{id}' fired");
+        _logger?.Info($"event '{id}' fired");
 
         if (id is null)
             return;
 
         _events?.EventsFor(message.EventId)?
             .ForEach(x => x.Invoke(message));
+    }
+
+    private void ListenForPacket()
+    {
+        while (true)
+        {
+            SpinWait.SpinUntil(() => _socket.Available > 0);
+
+            if (_socket is null)
+            {
+                // server has shutdown
+                break;
+            }
+
+            var packet = _socket.ReadNetMessage<Packet>().Result;
+
+            if (packet is null)
+            {
+                _logger?.Warn("Received packet, but the format was not expected.");
+                continue;
+            }
+
+            FireEvent(packet.EventId, packet);
+        }
     }
 }
