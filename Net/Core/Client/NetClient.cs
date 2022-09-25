@@ -22,11 +22,20 @@ public class NetClient<Packet, Identity>
     ILogger? logger;
 
     private Identity? _localId;
+
+    /// <summary>
+    /// Sets the identity that will be used to connect to the server.
+    /// </summary>
+    /// <param name="identifier"></param>
     public void SetLocalIdentifier(Identity identifier)
     {
         _localId = identifier;
     }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="ILogger"/> from <typeparamref name="L"/> and use it to log.
+    /// </summary>
+    /// <typeparam name="L">The logger to use</typeparam>
     public void UseLogger<L>() where L : ILogger, new()
     {
         logger = new L();
@@ -89,12 +98,46 @@ public class NetClient<Packet, Identity>
         }
     }
 
+    /// <summary>
+    /// Send an <see cref="INetMessage"/> to <paramref name="sock"/> and wait for a response.
+    /// </summary>
+    /// <param name="sock">The socket to send the data to</param>
+    /// <param name="msg">The message to send</param>
+    /// <returns>The response</returns>
     public async Task<INetMessage?> Send(Socket sock, INetMessage msg)
     {
+        if (!msg.WantsResponse)
+        {
+            logger?.Warn("You are using Client.Send but do not want a response. It is better practice to use RhetoricalSend instead.");
+        }
+
         await sock.SendNetMessage(msg);
         return await sock.ReadNetMessage<Packet>();
     }
 
+    /// <summary>
+    /// Send an <see cref="INetMessage"/> to <paramref name="sock"/> without trying to get a response
+    /// </summary>
+    /// <param name="sock">The socket to send the data to</param>
+    /// <param name="msg">The data</param>
+    /// <returns></returns>
+    public async Task RhetoricalSend(Socket sock, INetMessage msg)
+    {
+        await sock.SendNetMessage(msg);
+    }
+
+    /// <summary>
+    /// Start the client. This will attempt to connect to the server. If we fail to connect to the server, the function will return false.
+    /// If in debug mode, on failed connected an exception will be thrown. Once connected, the local identity will be communicated
+    /// and the connection will be established. To call this function, you MUST have the local identifier set. This can be set through
+    /// factory functions, or with <see cref="SetLocalIdentifier(Identity)"/>
+    /// (Events: 'connecting', 'connected', 'rejected')
+    /// </summary>
+    /// <param name="ip"></param>
+    /// <param name="port"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    /// <exception cref="NullReferenceException"></exception>
     public async Task<bool> Start(string ip, int port)
     {
         logger?.Info($"Client start on '{ip}:{port}'");
@@ -140,6 +183,7 @@ public class NetClient<Packet, Identity>
 #if DEBUG
             throw new Exception("server failed to respond to the connection");
 #else
+            FireEvent(response?.EventId, response!);
             return false;
 #endif
         }
@@ -149,6 +193,7 @@ public class NetClient<Packet, Identity>
 #if DEBUG
             throw new Exception("server rejected the connection");
 #else
+            FireEvent(response?.EventId, response!);
             return false;
 #endif
         }
@@ -160,6 +205,11 @@ public class NetClient<Packet, Identity>
         return true;
     }
 
+    /// <summary>
+    /// Waits for a response from the server.
+    /// </summary>
+    /// <typeparam name="T">The type to convert the message into</typeparam>
+    /// <returns><see cref="MessageInfo"/></returns>
     public async Task<MessageInfo?> WaitForMessage<T>() where T : INetMessage
     {
         logger?.Info("Waiting for response");
@@ -171,6 +221,11 @@ public class NetClient<Packet, Identity>
         };
     }
 
+    /// <summary>
+    /// Waits for a response from the server, until the time waiting is bigger than or equal to <paramref name="timeout"/>.
+    /// </summary>
+    /// <typeparam name="T">The type to convert the message into</typeparam>
+    /// <returns><see cref="MessageInfo"/></returns>
     public async Task<MessageInfo?> WaitForMessage<T>(TimeSpan timeout) where T : INetMessage
     {
         SpinWait.SpinUntil(() => _socket.Available > 0, timeout);
@@ -181,6 +236,12 @@ public class NetClient<Packet, Identity>
         };
     }
     
+    /// <summary>
+    /// Register an event. This will execute when the server sends data with the eventId equal to <paramref name="Event"/>.
+    /// (There can be multiple for the same event)
+    /// </summary>
+    /// <param name="Event">The event identifier. Eg: 'connected'</param>
+    /// <param name="event">The callback to execute.</param>
     public void On(string Event, Event @event)
     {
         _events.Add(Event, @event);
