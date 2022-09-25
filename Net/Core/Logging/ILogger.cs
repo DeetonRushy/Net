@@ -1,4 +1,5 @@
-﻿using Net.Console;
+﻿using Net.Config;
+using Net.Console;
 using Pastel;
 using System.Drawing;
 
@@ -18,6 +19,8 @@ public interface ILogger
     public Task WarnAsync(ConsoleSystem console, string message);
 }
 
+
+// FIXME: absolute fucking mess
 public class DebugLogger : ILogger
 {
     // Padding
@@ -38,55 +41,110 @@ public class DebugLogger : ILogger
 
     public DebugLogger(string target)
     {
+#if DEBUG
+        ConfigurationManager.SetFlag(ConfigTarget.Server, new ConfigFlag("logPath", new() { "output.log" }));
+#endif
+
+        // only log on the server
+        if (ServerConfig.GetFlag("logPath") is ConfigFlag flag)
+        {
+            if (flag.Options.Count != 1)
+            {
+                throw new Exception("The option logPath requires one option. (the path)");
+            }
+
+            var file = flag.Options[0];
+            
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+        }
+
         Target = target;
         GlobalTargets.Add(target);
+    }
+
+    private string BuildMsg(Color color, string type, string t)
+    {
+        return $"({Target}) {"".PadRight(Max - (Max - Target.Length))}[{type.Pastel(color)}] {t}";
+    }
+    private string BuildFMsg(string type, string t)
+    {
+        return $"({Target}) {"".PadRight(Max - (Max - Target.Length))}[{type}] {t}";
+    }
+    private void WriteToLog(string type, string t)
+    {
+        if (ServerConfig.GetFlag("logPath") is ConfigFlag flag)
+        {
+            File.AppendAllText(flag.Options[0], BuildFMsg(type, t) + "\n");
+        }
+    }
+
+    private async Task WriteToLogAsync(string type, string t)
+    {
+        if (ServerConfig.GetFlag("logPath") is ConfigFlag flag)
+        {
+            await File.AppendAllTextAsync(flag.Options[0], BuildFMsg(type, t) + "\n");
+        }
     }
 
     public string Target { get; set; }
 
     public void Error(string message)
     {
-#if DEBUG
-        System.Console.WriteLine($"({Target}) {"".PadRight((Max - (Max - Target.Length)))}[{"Error".Pastel(Color.Red)}] {message}");
-#endif
+        System.Console.WriteLine(BuildMsg(Color.Red, "Error", message));
+        
     }
 
     public async Task ErrorAsync(ConsoleSystem console, string message)
     {
-#if DEBUG
+        var built = BuildMsg(Color.Red, "Error", message);
+
         await console
             .WriteLineAsync
             (
-            $"({Target}) {"".PadRight((Max - (Max - Target.Length)))}[{"Error".Pastel(Color.Red)}] {message}"
+            built
             );
-#endif
+        await WriteToLogAsync("Error", message);
     }
 
     public void Info(string message)
     {
-        System.Console.WriteLine($"({Target}) {"".PadRight((Max - (Max - Target.Length)))}[{"Info".Pastel(Color.Cyan)}] {message}");
+        var built = BuildMsg(Color.Blue, "Info", message);
+        System.Console.WriteLine(built);
+        WriteToLog("Info", message);
     }
 
     public async Task InfoAsync(ConsoleSystem console, string message)
     {
+        var built = BuildMsg(Color.Blue, "Info", message);
+
         await console
             .WriteLineAsync
             (
-            $"({Target}) {"".PadRight((Max - (Max - Target.Length)))}[{"Info".Pastel(Color.Red)}] {message}"
+            built
             );
+        await WriteToLogAsync("Info", message);
     }
 
     public void Warn(string message)
     {
-        System.Console.WriteLine($"({Target}) {"".PadRight((Max - (Max - Target.Length)))} [{"Warn".Pastel(Color.OrangeRed)}] {message}");
+        var built = BuildMsg(Color.OrangeRed, "Warning", message);
+        System.Console.WriteLine(built);
+
+        WriteToLog("Warning", message);
     }
 
     public async Task WarnAsync(ConsoleSystem console, string message)
     {
+        var built = BuildMsg(Color.OrangeRed, "Warning", message);
+
         await console
             .WriteLineAsync
             (
-            $"({Target}) {"".PadRight((Max - (Max - Target.Length)))}[{"Warn".Pastel(Color.Red)}] {message}"
+            built
             );
+        await WriteToLogAsync("Warning", message);
     }
 }
