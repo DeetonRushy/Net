@@ -1,10 +1,12 @@
 ﻿using Net;
 using Net.Config;
-using Net.Core.Client;
 using Net.Core.Logging;
 using Net.Core.Messages;
-using Net.Core.ResourceParser.Lexer;
 using Net.Core.Server.Connection.Identity;
+
+/*
+ * creates a local server + client
+ */
 
 ConfigurationManager.UseLogger<DebugLogger>();
 
@@ -22,7 +24,7 @@ if (msg is null)
     return;
 }
 
-await server.SendToRhetorical
+await server.RhetoricalSendTo
     (IdentityType.Name, "Deeton", 
     msg);
 

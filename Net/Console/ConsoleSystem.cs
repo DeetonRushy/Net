@@ -8,9 +8,9 @@ public delegate void ConsoleCommand(List<string> args);
 /// </summary>
 public class ConsoleSystem
 {
-    private IDictionary<string, ConsoleCommand> commands = new Dictionary<string, ConsoleCommand>();
-    private Thread reader;
-    private Thread uiManager;
+    private readonly IDictionary<string, ConsoleCommand> commands = new Dictionary<string, ConsoleCommand>();
+    private readonly Thread reader;
+    private readonly Thread uiManager;
 
     private static int GetThreadInfo()
     {

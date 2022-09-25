@@ -10,7 +10,7 @@ public static class LexerConstants
     public const char EndOfResource = '\0';
 
     public static readonly List<char> ReservedCharacters
-        = new List<char>()
+        = new ()
         {
             QuestionMark,
             Ampersand,

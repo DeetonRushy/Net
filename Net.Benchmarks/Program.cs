@@ -4,7 +4,6 @@ using BenchmarkDotNet.Running;
 using Net.Core.Messages;
 using Net.Core.ResourceParser;
 using Net.Core.Server.Connection.Identity;
-using System.Diagnostics;
 
 BenchmarkRunner.Run<NetBenchmarks>();
 

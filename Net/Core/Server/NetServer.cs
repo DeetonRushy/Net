@@ -42,7 +42,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
             }
 
             ResourceConversionEngine<NetMessage<CLIdentity>> engine =
-                new ResourceConversionEngine<NetMessage<CLIdentity>>();
+                new ();
 
             NetMessage<CLIdentity>? result;
 
@@ -121,12 +121,12 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         return await socket.ReadNetMessage<T>();
     }
 
-    public async Task SendRhetorical<T>(Socket socket, T msg) where T : INetMessage
+    public async Task RhetoricalSendTo<T>(Socket socket, T msg) where T : INetMessage
     {
         msg.WantsResponse = false;
         await socket.SendNetMessage(msg);
     }
-    public async Task SendToRhetorical<T>(IdentityType identifierType, string identifier, T msg) where T : INetMessage
+    public async Task RhetoricalSendTo<T>(IdentityType identifierType, string identifier, T msg) where T : INetMessage
     {
         /* 
  * Identifiers in _connectedClients should always have their Socket
@@ -243,13 +243,13 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
                     if (response is null)
                     {
-                        await SendRhetorical(sock, NetMessage<CLIdentity>.Rejected);
+                        await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Rejected);
                         return;
                     }
 
                     if (response.Identity is null)
                     {
-                        await SendRhetorical(sock, NetMessage<CLIdentity>.Rejected);
+                        await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Rejected);
                         return;
                     }
 
@@ -261,7 +261,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                                 .WithEventId("disallowed")
                                 .WithProperty("reason", "Multiple sessions for the same user is disallowed")
                                 .Build();
-                            await SendRhetorical(sock, rejection);
+                            await RhetoricalSendTo(sock, rejection);
                             sock.Close();
                             return;
                         }
@@ -281,7 +281,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                         _connectedClients?.Add(serverClient);
                     }
 
-                    await SendRhetorical(sock, NetMessage<CLIdentity>.Connected);
+                    await RhetoricalSendTo(sock, NetMessage<CLIdentity>.Connected);
                 });
             }
         })
