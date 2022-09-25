@@ -15,7 +15,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 {
     private Socket? _socket;
     private List<Socket>? _rawConnections;
-    private List<CLIdentity> _connectedClients;
+    private readonly List<CLIdentity> _connectedClients;
     private Thread? _acceptor;
 
     private readonly Logging.ILogger _logger;
@@ -92,13 +92,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         GC.SuppressFinalize(this);
         _acceptor?.Join();
 
-        if (_rawConnections is not null)
-        {
-            foreach (var conn in _rawConnections)
-            {
-                conn.Dispose();
-            }
-        }
+        Shutdown<NetMessage<DefaultId>>("Server is closing").RunSynchronously();
 
         _socket?.Dispose();
     }
@@ -380,5 +374,28 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         {
             await Send(client, message);
         }
+    }
+
+    public async Task Shutdown<T>(string Reason) where T: class, INetMessage, new()
+    {
+        await Task.Run(async () =>
+        {
+            var resource = await Factory.MessageFromResourceString<T>($"shutdown?reason='{Reason}'");
+
+            if (resource is not null)
+            {
+                // would only ever fail if there was a bug
+                await Broadcast(resource);
+                return;
+            }
+
+            _socket?.Shutdown(SocketShutdown.Both);
+
+            _connectedClients?.ForEach((x) =>
+            {
+                x.Socket?.Close();
+                x.Socket?.Dispose();
+            });
+        });
     }
 }
