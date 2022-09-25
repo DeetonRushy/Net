@@ -328,6 +328,23 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         return new MessageInfo { Message = message, Sender = client };
     }
 
+    public async Task TriggerEvent(INetMessage message)
+    {
+        foreach (var cl in _connectedClients)
+        {
+            await RhetoricalSendTo(IdentityType.Name, cl.Name, message);
+        }
+    }
+    public async Task TriggerEventFor(IdentityType type, string identifier, INetMessage message)
+    {
+        await RhetoricalSendTo(type, identifier, message);
+    }
+
+    public async Task<T?> TriggerEventFor<T>(IdentityType type, string identifier, INetMessage message) where T : INetMessage
+    {
+        return await SendTo<T>(type, identifier, message);
+    }
+
     public async Task Broadcast(INetMessage message)
     {
         if (_rawConnections is null)
