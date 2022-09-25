@@ -105,11 +105,11 @@ public class ResourceLexer
 
         if (lexeme.Length == 0)
         {
-            // Looks like this: 'resource?=value
-            //                           ^^^
-            //                    Needs identifier
+            // Looks like this: 'resource?property=
+            //                                    ^^^
+            //                               Needs value
 
-            throw new LexerException("Bad identifier");
+            throw new LexerException($"Bad property value at {_position}");
         }
 
         // deduct an index to make up for our advances
