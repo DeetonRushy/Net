@@ -32,4 +32,12 @@ public class NetBenchmarks
             = ResourceConversionEngine<NetMessage<DefaultId>>
             .ParseResource("connected?size=14&iiwr=true");
     }
+
+    [Benchmark]
+    public void BenchmarkWithStringLiteral()
+    {
+        INetMessage? resource
+            = ResourceConversionEngine<NetMessage<DefaultId>>
+            .ParseResource("connected?text='Welcome!'&fontsize=14");
+    }
 }

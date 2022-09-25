@@ -15,7 +15,7 @@ namespace Net.Tests
         [SetUp]
         public void Setup()
         {
-            /*warmup the engine*/
+            /*initialize the engine*/
             _engine = new ResourceConversionEngine<NetMessage<DefaultId>>();
         }
 
@@ -77,6 +77,8 @@ namespace Net.Tests
             Assert.That(resource.EventId == "help");
             Assert.That(resource.Properties.ContainsKey("text"));
             Assert.That(resource.Properties["text"], Is.EqualTo("hello world!"));
+
+            _engine.Reset();
         }
     }
 }
