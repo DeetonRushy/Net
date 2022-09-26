@@ -32,4 +32,5 @@ public class DefaultId : ICLIdentifier
     /// it's <see cref="ICLIdentifier"/> instance.
     /// </summary>
     public Socket? Socket { get; init; } = default;
+    public DateTime TimeConnected { get; init; } = DateTime.Now;
 }

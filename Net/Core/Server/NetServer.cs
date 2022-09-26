@@ -4,6 +4,7 @@ using Net.Console;
 using Net.Core.Logging;
 using Net.Core.Messages;
 using Net.Core.ResourceParser;
+using Net.Core.ResourceParser.Lexer.Exceptions;
 using Net.Core.Server.Connection.Identity;
 using Net.Extensions;
 using System.Net;
@@ -35,9 +36,10 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         _console = new ConsoleSystem();
         _connectedClients = new();
 
+#if DEBUG
         _console.AddCommand("broadcast.resource", (args) =>
         {
-            if (args.Count != 1)
+            if (args.Count < 1)
             {
                 _console.WriteLine("usage: broadcast.resource <resource-s>");
                 _console.WriteLine("example: broadcast.resource sendmessage?text=Hi");
@@ -51,7 +53,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
             try
             {
-                result = engine.Parse(args[0]);
+                result = engine.Parse(string.Join(' ', args));
             }
             catch (Exception ex)
             {
@@ -83,6 +85,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 System.Console.WriteLine($"{cl.Name} - {cl.Id} Connected: {cl.Socket?.Connected}");
             }
         });
+#endif
     }
 
     ~NetServer()
@@ -165,6 +168,26 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 throw new ArgumentOutOfRangeException($"IdentityType({identifierType}) is not implemented.");
         }
     }
+    public async Task RhetoricalSendTo<T>(IdentityType identifierType, string identifier, string resourceString) where T: class, INetMessage, new()
+    {
+        INetMessage? msg;
+        try
+        {
+            msg =
+                ResourceConversionEngine<T>.ParseResource(resourceString);
+        }
+        catch (LexerException)
+        {
+            throw;
+        }
+
+        if (msg is null)
+        {
+            throw new ArgumentException("bad resource string");
+        }
+
+        await RhetoricalSendTo(identifierType, identifier, msg);
+    }
     public async Task<INetMessage?> SendTo(IdentityType identifierType, string identifier, INetMessage message)
     {
         /* 
@@ -209,6 +232,27 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
     public async Task<T?> SendTo<T>(IdentityType identifierType, string identifier, INetMessage message) where T: INetMessage
     {
         return (T?)await SendTo(identifierType, identifier, message);
+    }
+    public async Task<T?> SendTo<T>(IdentityType identifierType, string identifier, string resourceString) where T : class, INetMessage, new()
+    {
+        T? resource;
+
+        try
+        {
+            resource =
+                await Factory.MessageFromResourceString<T>(resourceString);
+        }
+        catch
+        {
+            throw;
+        }
+
+        if (resource is null)
+        {
+            throw new ArgumentException("bad resource string");
+        }
+
+        return await SendTo<T>(identifierType, identifier, resource);
     }
     public async Task<bool> Start(string ip, int port)
     {
@@ -276,6 +320,26 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
     {
         await RhetoricalSendTo(type, identifier, message);
     }
+    public async Task TriggerEventFor<T>(IdentityType type, string identifier, string resourceString) where T: class, INetMessage, new()
+    {
+        T? msg;
+        try
+        {
+            msg =
+                ResourceConversionEngine<T>.ParseResource(resourceString);
+        }
+        catch (LexerException)
+        {
+            throw;
+        }
+
+        if (msg is null)
+        {
+            throw new ArgumentException("bad resource string");
+        }
+
+        await TriggerEventFor<T>(IdentityType.Name, identifier, msg);
+    }
     public async Task<T?> TriggerEventFor<T>(IdentityType type, string identifier, INetMessage message) where T : INetMessage
     {
         return await SendTo<T>(type, identifier, message);
@@ -315,6 +379,26 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         {
             await Send(client, message);
         }
+    }
+    public async Task Broadcast<T>(string resourceString) where T: class, INetMessage, new()
+    {
+        T? msg;
+        try
+        {
+            msg =
+                ResourceConversionEngine<T>.ParseResource(resourceString);
+        }
+        catch (LexerException)
+        {
+            throw;
+        }
+
+        if (msg is null)
+        {
+            throw new ArgumentException("bad resource string");
+        }
+
+        await Broadcast(msg);
     }
     public async Task Shutdown<T>(string Reason) where T: class, INetMessage, new()
     {
