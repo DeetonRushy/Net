@@ -1,5 +1,6 @@
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 using Net.Core.ResourceParser.Lexer.Exceptions;
+using System.Diagnostics;
 using System.Reflection.Metadata.Ecma335;
 
 namespace Net.Core.ResourceParser.Lexer;
@@ -92,7 +93,7 @@ public class ResourceLexer
 
     private Token LexPropertyValue()
     {
-        // Values are allowed to be anything (other than &, ? or =).
+        // Values are allowed to be anything (other than reserved characters when not in a string).
         // They are all stored as strings anyway.
 
         string lexeme = string.Empty;
@@ -154,13 +155,19 @@ public class ResourceLexer
         string lexeme = string.Empty;
         char c = Current();
 
-        while (char.IsLetter(c))
+        while (char.IsLetter(c) || c == '_')
         {
             lexeme += c;
             c = Advance();
 
             if (c == LexerConstants.EndOfResource)
                 throw new LexerException("Unexpected end of resource");
+        }
+
+        if (!LexerConstants.ReservedCharacters.Contains(c))
+        {
+            // used something not within the bounds ('a-Z_')
+            Trace.TraceWarning($"You may have used a dis-allowed character in your property identifier at position {_position}. (context: '{_contents}')");
         }
 
         if (lexeme.Length == 0)
