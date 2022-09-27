@@ -155,7 +155,7 @@ public class ResourceLexer
         string lexeme = string.Empty;
         char c = Current();
 
-        while (char.IsLetter(c) || c == '_')
+        while (LexerConstants.IsValidIdentifierChar(c))
         {
             lexeme += c;
             c = Advance();
