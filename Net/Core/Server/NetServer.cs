@@ -440,7 +440,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
     public bool IsDebug
         => _debugMode;
 
-    public void ServerPacketAcceptor()
+    private void ServerPacketAcceptor()
     {
         while (true)
         {
