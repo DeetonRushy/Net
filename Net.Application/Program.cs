@@ -4,6 +4,18 @@ using Net.Core.Logging;
 using Net.Core.Messages;
 using Net.Core.Server.Connection.Identity;
 
+using Net.Services.DirectoryLayoutBuilder;
+
+
+new DirectoryLayout(Path.Join(Directory.GetCurrentDirectory(), "net"))
+    .MakeTopLevel("config")
+        .MakeDotFile("config")
+        .ToRoot()
+    .MakeTopLevel("saved")
+        .MakeNew("users")
+            .GoBack()
+        .ToRoot();
+
 /*
  * creates a local server + client
  */
