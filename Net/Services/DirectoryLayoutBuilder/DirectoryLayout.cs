@@ -1,5 +1,8 @@
 namespace Net.Services.DirectoryLayoutBuilder;
 
+/// <summary>
+/// Provides a way to build a directory structure.
+/// </summary>
 public class DirectoryLayout
 {
     private string _context =

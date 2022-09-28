@@ -1,5 +1,9 @@
 namespace Net.Services.DirectoryLayoutBuilder;
 
+/// <summary>
+/// Represents a file node, typically initialized by another <see cref="DirectoryNode"/> or by 
+/// a <see cref="DirectoryLayout"/> instance.
+/// </summary>
 public class DirectoryNode
 {
     private DirectoryLayout? _rootNode;
@@ -35,7 +39,7 @@ public class DirectoryNode
     }
     public DirectoryNode MakeDotFile(string name)
     {
-        File.Create($"{_context}/.{name}").Close();
+        File.Create($"{_context}/.{name}").Dispose();
         return this;
     }
 }
