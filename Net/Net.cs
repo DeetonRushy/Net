@@ -8,6 +8,7 @@ using Net.Core.ResourceParser;
 using Net.Core.Server;
 using Net.Core.Server.Connection.Identity;
 using System.Runtime.CompilerServices;
+using System.Security.Principal;
 
 namespace Net
 {
@@ -38,7 +39,7 @@ namespace Net
         }
 
         public static NetClient<Msg, Id> MakeClient<Msg, Id>()
-            where Msg : INetMessage
+            where Msg : INetMessage<Id>
             where Id  : ICLIdentifier
         {
             var client = new NetClient<Msg, Id>();
@@ -47,7 +48,7 @@ namespace Net
 
         public static async Task<NetClient<Msg, Id>> 
             MakeClientAndStart<Msg, Id>(string ip, int port, Id id)
-            where Msg: INetMessage
+            where Msg: INetMessage<Id>
             where Id: ICLIdentifier
         {
             var cl = MakeClient<Msg, Id>();
@@ -73,7 +74,7 @@ namespace Net
         }
 
         public static async Task<NetClient<Packet, Identity>> MakeClientFromDetails<Packet, Identity>(Identity id)
-            where Packet : INetMessage, new()
+            where Packet : INetMessage<Identity>, new()
             where Identity : ICLIdentifier, new()
         {
             if (ClientConfig.GetFlag("connection_details") is not ConfigFlag details)
@@ -105,12 +106,12 @@ namespace Net
                 }));
         }
 
-        public static async Task<T?> MessageFromResourceString<T>(string resource) where T : class, INetMessage, new()
+        public static async Task<T?> MessageFromResourceString<T, I>(string resource) where T : class, INetMessage<I>, new() where I: ICLIdentifier
         {
             return await Task.Run(() =>
             {
                 var message = new T();
-                message = ResourceConversionEngine<T>.ParseResource(resource);
+                message = ResourceConversionEngine<T, I>.ParseResource(resource);
                 return message;
             });
         }

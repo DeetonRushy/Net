@@ -9,14 +9,14 @@ namespace Net.Tests
 {
     public class Tests
     {
-        public ResourceConversionEngine<NetMessage<DefaultId>>
+        public ResourceConversionEngine<NetMessage<DefaultId>, DefaultId>
             _engine;
 
         [SetUp]
         public void Setup()
         {
             /*initialize the engine*/
-            _engine = new ResourceConversionEngine<NetMessage<DefaultId>>();
+            _engine = new ResourceConversionEngine<NetMessage<DefaultId>, DefaultId>();
         }
 
         [Test]

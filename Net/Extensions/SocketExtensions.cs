@@ -6,12 +6,13 @@ using System.Text;
 using System.Diagnostics;
 using Pastel;
 using System.Drawing;
+using Net.Core.Server.Connection.Identity;
 
 namespace Net.Extensions;
 
 public static class SocketExtensions
 {
-    public static async Task SendNetMessage(this Socket socket, INetMessage message)
+    public static async Task SendNetMessage<I>(this Socket socket, INetMessage<I> message) where I : ICLIdentifier
     {
         if (!socket.Connected)
         {
@@ -25,7 +26,7 @@ public static class SocketExtensions
         await socket.SendAsync(bytes, SocketFlags.None);
     }
 
-    public static async Task<T?> ReadNetMessage<T>(this Socket socket) where T : INetMessage
+    public static async Task<T?> ReadNetMessage<T, I>(this Socket socket) where T : INetMessage<I> where I : ICLIdentifier
     {
         if (!socket.Connected)
             return default;

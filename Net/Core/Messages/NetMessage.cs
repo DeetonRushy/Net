@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Net.Core.Messages;
 
-public interface INetMessage
+public interface INetMessage<T> where T: ICLIdentifier
 {
     /// <summary>
     /// Short identifier that explains what message/event this is.
@@ -28,13 +28,18 @@ public interface INetMessage
     /// Notifies the receiver if you want a response or not.
     /// </summary>
     public bool WantsResponse { get; set; }
+
+    /// <summary>
+    /// The senders identity, should only be null if send from the server.
+    /// </summary>
+    public T? Identity { get; set; }
 }
 
 /// <summary>
 /// Serves as a base for INetMessage. This is the default type that
 /// will be networked.
 /// </summary>
-public class NetMessage<T> : INetMessage where T : ICLIdentifier
+public class NetMessage<T> : INetMessage<T> where T : ICLIdentifier
 {
     public NetMessage()
     {

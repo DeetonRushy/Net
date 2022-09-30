@@ -12,32 +12,32 @@ public class NetBenchmarks
     [GlobalSetup]
     public void WarmupEngine()
     {
-        INetMessage? resource = 
-            ResourceConversionEngine<NetMessage<DefaultId>>
+        INetMessage<DefaultId>? resource = 
+            ResourceConversionEngine<NetMessage<DefaultId>, DefaultId>
             .ParseResource("connected");
     }
 
     [Benchmark]
     public void BenchmarkSimpleParse()
     {
-        INetMessage? resource =
-            ResourceConversionEngine<NetMessage<DefaultId>>
+        INetMessage<DefaultId>? resource =
+            ResourceConversionEngine<NetMessage<DefaultId>, DefaultId>
             .ParseResource("connected");
     }
 
     [Benchmark]
     public void BenchmarkWith2ArgumentsAndSpecialArg()
     {
-        INetMessage? resource 
-            = ResourceConversionEngine<NetMessage<DefaultId>>
+        INetMessage<DefaultId>? resource 
+            = ResourceConversionEngine<NetMessage<DefaultId>, DefaultId>
             .ParseResource("connected?size=14&iiwr=true");
     }
 
     [Benchmark]
     public void BenchmarkWithStringLiteral()
     {
-        INetMessage? resource
-            = ResourceConversionEngine<NetMessage<DefaultId>>
+        INetMessage<DefaultId>? resource
+            = ResourceConversionEngine<NetMessage<DefaultId>, DefaultId>
             .ParseResource("connected?text='Welcome!'&fontsize=14");
     }
 }

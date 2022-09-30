@@ -12,7 +12,7 @@ using System.Net.Sockets;
 
 namespace Net.Core.Server;
 
-public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIdentity : ICLIdentifier, new()
+public class NetServer<CLIdentity> : INetworkInterface<CLIdentity>, IDisposable where CLIdentity : ICLIdentifier, new()
 {
     private Socket? _socket;
     private List<Socket>? _rawConnections;
@@ -46,7 +46,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 return;
             }
 
-            ResourceConversionEngine<NetMessage<CLIdentity>> engine =
+            ResourceConversionEngine<NetMessage<CLIdentity>, CLIdentity> engine =
                 new ();
 
             NetMessage<CLIdentity>? result;
@@ -97,11 +97,11 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
         GC.SuppressFinalize(this);
         _acceptor?.Join();
 
-        Shutdown<NetMessage<DefaultId>>("Server is closing").RunSynchronously();
+        Shutdown<NetMessage<CLIdentity>>("Server is closing").RunSynchronously();
 
         _socket?.Dispose();
     }
-    public async Task<INetMessage?> Send(Socket socket, INetMessage msg)
+    public async Task<INetMessage<CLIdentity>?> Send(Socket socket, INetMessage<CLIdentity> msg)
     {
         if (_rawConnections is null)
             return null;
@@ -112,17 +112,17 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         return response?.Message;
     }
-    public async Task<T?> Send<T>(Socket socket, T msg) where T: INetMessage
+    public async Task<T?> Send<T>(Socket socket, T msg) where T: INetMessage<CLIdentity>
     {
         await socket.SendNetMessage(msg);
-        return await socket.ReadNetMessage<T>();
+        return await socket.ReadNetMessage<T, CLIdentity>();
     }
-    public async Task RhetoricalSendTo<T>(Socket socket, T msg) where T : INetMessage
+    public async Task RhetoricalSendTo<T>(Socket socket, T msg) where T : INetMessage<CLIdentity>
     {
         msg.WantsResponse = false;
         await socket.SendNetMessage(msg);
     }
-    public async Task RhetoricalSendTo<T>(IdentityType identifierType, string identifier, T msg) where T : INetMessage
+    public async Task RhetoricalSendTo<T>(IdentityType identifierType, string identifier, T msg) where T : INetMessage<CLIdentity>
     {
         /* 
  * Identifiers in _connectedClients should always have their Socket
@@ -168,13 +168,13 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 throw new ArgumentOutOfRangeException($"IdentityType({identifierType}) is not implemented.");
         }
     }
-    public async Task RhetoricalSendTo<T>(IdentityType identifierType, string identifier, string resourceString) where T: class, INetMessage, new()
+    public async Task RhetoricalSendTo<T>(IdentityType identifierType, string identifier, string resourceString) where T: class, INetMessage<CLIdentity>, new()
     {
-        INetMessage? msg;
+        INetMessage<CLIdentity>? msg;
         try
         {
             msg =
-                ResourceConversionEngine<T>.ParseResource(resourceString);
+                (INetMessage<CLIdentity>?)ResourceConversionEngine<T, CLIdentity>.ParseResource(resourceString);
         }
         catch (LexerException)
         {
@@ -188,7 +188,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         await RhetoricalSendTo(identifierType, identifier, msg);
     }
-    public async Task<INetMessage?> SendTo(IdentityType identifierType, string identifier, INetMessage message)
+    public async Task<INetMessage<CLIdentity>?> SendTo(IdentityType identifierType, string identifier, INetMessage<CLIdentity> message)
     {
         /* 
          * Identifiers in _connectedClients should always have their Socket
@@ -203,7 +203,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 {
                     if (!_connectedClients.Any(x => x.Name == identifier))
                     {
-                        return (INetMessage?)default(DefaultId);
+                        return (INetMessage<CLIdentity>?)default(DefaultId);
                     }
 
                     var client = _connectedClients
@@ -216,7 +216,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 {
                     if (!_connectedClients.Any(x => x.Id.ToString() == identifier))
                     {
-                        return (INetMessage?)default(DefaultId);
+                        return (INetMessage<CLIdentity>?)default(DefaultId);
                     }
 
                     var client = _connectedClients
@@ -229,18 +229,18 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
                 throw new ArgumentOutOfRangeException($"IdentityType({identifierType}) is not implemented.");
         }
     }
-    public async Task<T?> SendTo<T>(IdentityType identifierType, string identifier, INetMessage message) where T: INetMessage
+    public async Task<T?> SendTo<T>(IdentityType identifierType, string identifier, INetMessage<CLIdentity> message) where T: INetMessage<CLIdentity>
     {
         return (T?)await SendTo(identifierType, identifier, message);
     }
-    public async Task<T?> SendTo<T>(IdentityType identifierType, string identifier, string resourceString) where T : class, INetMessage, new()
+    public async Task<T?> SendTo<T>(IdentityType identifierType, string identifier, string resourceString) where T : class, INetMessage<CLIdentity>, new()
     {
         T? resource;
 
         try
         {
             resource =
-                await Factory.MessageFromResourceString<T>(resourceString);
+                await Factory.MessageFromResourceString<T, CLIdentity>(resourceString);
         }
         catch
         {
@@ -277,11 +277,11 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         return _socket.Connected;
     }
-    public async Task<MessageInfo?> WaitForMessage<T>() where T : INetMessage
+    public async Task<MessageInfo<CLIdentity>?> WaitForMessage<T>() where T : INetMessage<CLIdentity>
     {
         return await WaitForMessage<T>(TimeSpan.MaxValue);
     }
-    public async Task<MessageInfo?> WaitForMessage<T>(TimeSpan timeout) where T : INetMessage
+    public async Task<MessageInfo<CLIdentity>?> WaitForMessage<T>(TimeSpan timeout) where T : INetMessage<CLIdentity>
     {
         SpinWait.SpinUntil(() =>
         {
@@ -300,33 +300,33 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
             return default;
         }
 
-        var message = await client.ReadNetMessage<T>();
+        var message = await client.ReadNetMessage<T, CLIdentity>();
 
         if (message is null)
         {
             throw new InvalidDataException("Failed to read net message from client");
         }
 
-        return new MessageInfo { Message = message, Sender = client };
+        return new MessageInfo<CLIdentity> { Message = message, Sender = client };
     }
-    public async Task TriggerEvent(INetMessage message)
+    public async Task TriggerEvent(INetMessage<CLIdentity> message)
     {
         foreach (var cl in _connectedClients)
         {
             await RhetoricalSendTo(IdentityType.Name, cl.Name, message);
         }
     }
-    public async Task TriggerEventFor(IdentityType type, string identifier, INetMessage message)
+    public async Task TriggerEventFor(IdentityType type, string identifier, INetMessage<CLIdentity> message)
     {
         await RhetoricalSendTo(type, identifier, message);
     }
-    public async Task TriggerEventFor<T>(IdentityType type, string identifier, string resourceString) where T: class, INetMessage, new()
+    public async Task TriggerEventFor<T>(IdentityType type, string identifier, string resourceString) where T: class, INetMessage<CLIdentity>, new()
     {
         T? msg;
         try
         {
             msg =
-                ResourceConversionEngine<T>.ParseResource(resourceString);
+                ResourceConversionEngine<T, CLIdentity>.ParseResource(resourceString);
         }
         catch (LexerException)
         {
@@ -340,11 +340,11 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         await TriggerEventFor<T>(IdentityType.Name, identifier, msg);
     }
-    public async Task<T?> TriggerEventFor<T>(IdentityType type, string identifier, INetMessage message) where T : INetMessage
+    public async Task<T?> TriggerEventFor<T>(IdentityType type, string identifier, INetMessage<CLIdentity> message) where T : INetMessage<CLIdentity>
     {
         return await SendTo<T>(type, identifier, message);
     }
-    public async Task Broadcast(INetMessage message)
+    public async Task Broadcast(INetMessage<CLIdentity> message)
     {
         if (_rawConnections is null)
         {
@@ -362,7 +362,7 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
             await Send(client, message);
         }
     }
-    public async Task Broadcast<T>(T message) where T: INetMessage
+    public async Task Broadcast<T>(T message) where T: INetMessage<CLIdentity>
     {
         if (_rawConnections is null)
         {
@@ -380,13 +380,13 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
             await Send(client, message);
         }
     }
-    public async Task Broadcast<T>(string resourceString) where T: class, INetMessage, new()
+    public async Task Broadcast<T>(string resourceString) where T: class, INetMessage<CLIdentity>, new()
     {
         T? msg;
         try
         {
             msg =
-                ResourceConversionEngine<T>.ParseResource(resourceString);
+                ResourceConversionEngine<T, CLIdentity>.ParseResource(resourceString);
         }
         catch (LexerException)
         {
@@ -400,11 +400,11 @@ public class NetServer<CLIdentity> : INetworkInterface, IDisposable where CLIden
 
         await Broadcast(msg);
     }
-    public async Task Shutdown<T>(string Reason) where T: class, INetMessage, new()
+    public async Task Shutdown<T>(string Reason) where T: class, INetMessage<CLIdentity>, new()
     {
         await Task.Run(async () =>
         {
-            var resource = await Factory.MessageFromResourceString<T>($"shutdown?reason='{Reason}'");
+            var resource = await Factory.MessageFromResourceString<T, CLIdentity>($"shutdown?reason='{Reason}'");
 
             if (resource is not null)
             {

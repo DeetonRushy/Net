@@ -34,7 +34,19 @@ client.On("connected", (args) =>
     Console.WriteLine("connected to the server!");
 });
 
-var msg = await Factory.MessageFromResourceString<NetMessage<DefaultId>>("display?text='Willy And Balls'");
+client.On("display", (message) =>
+{
+    if (!message.Properties.ContainsKey("text"))
+    {
+        return;
+    }
+
+
+});
+
+var msg = 
+    await 
+    Factory.MessageFromResourceString<NetMessage<DefaultId>, DefaultId>("display?text='Willy And Balls'");
 
 if (msg is null)
 {

@@ -1,11 +1,12 @@
 using Net.Core.Messages;
 using Net.Core.ResourceParser.Lexer;
 using Net.Core.ResourceParser.Lexer.Exceptions;
+using Net.Core.Server.Connection.Identity;
 using Newtonsoft.Json.Linq;
 
 namespace Net.Core.ResourceParser;
 
-public class ResourceConversionEngine<T> where T: class, INetMessage, new()
+public class ResourceConversionEngine<T, I> where T: class, INetMessage<I>, new() where I: ICLIdentifier
 {
     private ResourceLexer resourceLexer;
     private T? message;
@@ -150,6 +151,6 @@ public class ResourceConversionEngine<T> where T: class, INetMessage, new()
 
     public static T? ParseResource(string resource)
     {
-        return new ResourceConversionEngine<T>().Parse(resource);
+        return new ResourceConversionEngine<T, I>().Parse(resource);
     }
 }

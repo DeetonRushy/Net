@@ -7,15 +7,16 @@ using Net.Core.Server.Connection.Identity;
 using Net.Extensions;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace Net.Core.Client;
 
 public class NetClient<Packet, Identity> 
-    : INetworkInterface where Identity : ICLIdentifier 
-    where Packet : INetMessage
+    : INetworkInterface<Identity> where Identity : ICLIdentifier 
+    where Packet : INetMessage<Identity>
 {
     private readonly Socket _socket;
-    private readonly EventDict _events;
+    private readonly EventDict<Identity> _events;
 
     private readonly Thread _socketListener;
 
@@ -43,7 +44,7 @@ public class NetClient<Packet, Identity>
 
     public NetClient()
     {
-        _events = new EventDict();
+        _events = new EventDict<Identity>();
         _events.Add("display", (message) =>
         {
             if (!message.Properties.ContainsKey("text"))
@@ -96,7 +97,7 @@ public class NetClient<Packet, Identity>
     /// <param name="sock">The socket to send the data to</param>
     /// <param name="msg">The message to send</param>
     /// <returns>The response</returns>
-    public async Task<INetMessage?> Send(Socket sock, INetMessage msg)
+    public async Task<INetMessage<Identity>?> Send(Socket sock, INetMessage<Identity> msg)
     {
         if (!msg.WantsResponse)
         {
@@ -104,7 +105,7 @@ public class NetClient<Packet, Identity>
         }
 
         await sock.SendNetMessage(msg);
-        return await sock.ReadNetMessage<Packet>();
+        return await sock.ReadNetMessage<Packet, Identity>();
     }
 
     /// <summary>
@@ -113,7 +114,7 @@ public class NetClient<Packet, Identity>
     /// <param name="sock">The socket to send the data to</param>
     /// <param name="msg">The data</param>
     /// <returns></returns>
-    public async Task RhetoricalSend(Socket sock, INetMessage msg)
+    public async Task RhetoricalSend(Socket sock, INetMessage<Identity> msg)
     {
         await sock.SendNetMessage(msg);
     }
@@ -151,7 +152,7 @@ public class NetClient<Packet, Identity>
 #endif
         }
 
-        var initial = await WaitForMessage<NetMessage<DefaultId>>();
+        var initial = await WaitForMessage<Packet, Identity>();
 
         if (initial is null)
         {
@@ -160,7 +161,7 @@ public class NetClient<Packet, Identity>
 
         FireEvent(initial.Message?.EventId, initial.Message!);
 
-        INetMessage? response = null;
+        INetMessage<Identity>? response = null;
 
         if (initial?.Message?.WantsResponse == true)
         {
@@ -202,28 +203,13 @@ public class NetClient<Packet, Identity>
     /// </summary>
     /// <typeparam name="T">The type to convert the message into</typeparam>
     /// <returns><see cref="MessageInfo"/></returns>
-    public async Task<MessageInfo?> WaitForMessage<T>() where T : INetMessage
+    public async Task<MessageInfo<Identity>?> WaitForMessage<T, I>() where T : INetMessage<I> where I: ICLIdentifier
     {
         _logger?.Info("Waiting for response");
 
-        return new MessageInfo 
+        return new MessageInfo<Identity> 
         { 
-            Message = await _socket.ReadNetMessage<Packet>(),
-            Sender = _socket
-        };
-    }
-
-    /// <summary>
-    /// Waits for a response from the server, until the time waiting is bigger than or equal to <paramref name="timeout"/>.
-    /// </summary>
-    /// <typeparam name="T">The type to convert the message into</typeparam>
-    /// <returns><see cref="MessageInfo"/></returns>
-    public async Task<MessageInfo?> WaitForMessage<T>(TimeSpan timeout) where T : INetMessage
-    {
-        SpinWait.SpinUntil(() => _socket.Available > 0, timeout);
-        return new MessageInfo
-        {
-            Message = await _socket.ReadNetMessage<T>(),
+            Message = await _socket.ReadNetMessage<Packet, Identity>(),
             Sender = _socket
         };
     }
@@ -234,12 +220,12 @@ public class NetClient<Packet, Identity>
     /// </summary>
     /// <param name="Event">The event identifier. Eg: 'connected'</param>
     /// <param name="event">The callback to execute.</param>
-    public void On(string Event, Event @event)
+    public void On(string Event, Event<Identity> @event)
     {
         _events.Add(Event, @event);
     }
 
-    private void FireEvent(string? id, INetMessage message)
+    private void FireEvent(string? id, INetMessage<Identity> message)
     {
         _logger?.Info($"event '{id}' fired");
 
@@ -262,7 +248,7 @@ public class NetClient<Packet, Identity>
                 break;
             }
 
-            var packet = _socket.ReadNetMessage<Packet>().Result;
+            var packet = _socket.ReadNetMessage<NetMessage<Identity>, Identity>().Result;
 
             if (packet is null)
             {
@@ -272,5 +258,35 @@ public class NetClient<Packet, Identity>
 
             FireEvent(packet.EventId, packet);
         }
+    }
+
+    /// <summary>
+    /// Waits for a response from the server.
+    /// </summary>
+    /// <typeparam name="T">The type to convert the message into</typeparam>
+    /// <returns><see cref="MessageInfo"/></returns>
+    public async Task<MessageInfo<Identity>?> WaitForMessage<T>() where T : INetMessage<Identity>
+    {
+        SpinWait.SpinUntil(() => _socket.Available > 0, TimeSpan.FromMinutes(int.MaxValue));
+        return new MessageInfo<Identity>
+        {
+            Message = await _socket.ReadNetMessage<T, Identity>(),
+            Sender = _socket
+        };
+    }
+
+    /// <summary>
+    /// Waits for a response from the server, until the time waiting is bigger than or equal to <paramref name="timeout"/>.
+    /// </summary>
+    /// <typeparam name="T">The type to convert the message into</typeparam>
+    /// <returns><see cref="MessageInfo"/></returns>
+    public async Task<MessageInfo<Identity>?> WaitForMessage<T>(TimeSpan timeout) where T : INetMessage<Identity>
+    {
+        SpinWait.SpinUntil(() => _socket.Available > 0, timeout);
+        return new MessageInfo<Identity>
+        {
+            Message = await _socket.ReadNetMessage<T, Identity>(),
+            Sender = _socket
+        };
     }
 }
