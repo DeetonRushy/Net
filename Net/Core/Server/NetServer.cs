@@ -431,7 +431,7 @@ public class NetServer<CLIdentity> : INetworkInterface<CLIdentity>, IDisposable 
             throw new ArgumentOutOfRangeException($"Not enough clients to get {count}");
         return _connectedClients
             .ToArray()
-            [0..count]
+            [0..(count == 0 ? _connectedClients.Count : count)]
             .ToList();
     }
     public int ClientCount
